@@ -13,7 +13,9 @@ const AddToCartButton = ({
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  const isValid = imageUrl && width > 0 && height > 0 && variantId;
+  const isServerUrl =
+    imageUrl && typeof imageUrl === "string" && !imageUrl.startsWith("blob:");
+  const isValid = isServerUrl && width > 0 && height > 0 && variantId;
 
   const addToCart = async () => {
     if (!isValid || isLoading) return;
@@ -21,7 +23,7 @@ const AddToCartButton = ({
     setIsLoading(true);
     setError(null);
     setSuccess(false);
-
+    console.log("imageUrl", imageUrl);
     try {
       const response = await fetch("/cart/add.js", {
         method: "POST",
@@ -50,7 +52,7 @@ const AddToCartButton = ({
       console.log("Added to cart:", data);
 
       setSuccess(true);
-      
+
       // Redirect to cart after short delay to show success state
       setTimeout(() => {
         window.location.href = "/cart";
@@ -66,8 +68,9 @@ const AddToCartButton = ({
   const getButtonText = () => {
     if (isLoading) return "Adding...";
     if (success) return "Added! Redirecting...";
-    if (!imageUrl) return "Upload an image first";
-    if (width <= 0 || height <= 0) return "Set dimensions";
+    // if (!imageUrl) return "Upload an image first";
+    // if (!isServerUrl) return "Process image to add to cart";
+    // if (width <= 0 || height <= 0) return "Set dimensions";
     return "Add to Cart";
   };
 
@@ -75,9 +78,9 @@ const AddToCartButton = ({
     if (success) {
       return "bg-green-600 hover:bg-green-600";
     }
-    if (!isValid || disabled) {
-      return "bg-gray-400 cursor-not-allowed";
-    }
+    // if (!isValid || disabled) {
+    //   return "bg-gray-400 cursor-not-allowed";
+    // }
     return "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700";
   };
 
@@ -86,8 +89,12 @@ const AddToCartButton = ({
       <button
         type="button"
         onClick={addToCart}
-        disabled={!isValid || isLoading || disabled}
+        // disabled={!isValid || isLoading || disabled}
         className={`w-full py-3 px-6 rounded-lg text-white font-semibold text-base shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${getButtonStyle()}`}
+        style={{
+          background: "#4c4cec",
+          borderRadius: "15px",
+        }}
       >
         {isLoading ? (
           <svg

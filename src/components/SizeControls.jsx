@@ -56,14 +56,8 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
           <label className="text-sm font-medium text-gray-700">
             Width (inches)
           </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={decrementWidth}
-              className="h-10 w-10 rounded-md border border-gray-300 text-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
-            >
-              −
-            </button>
+          <div className="size-controls-stepper flex items-center gap-2">
+            <button type="button" onClick={decrementWidth} className="size-controls-btn" aria-label="Decrease width">−</button>
             <input
               type="number"
               value={width}
@@ -71,15 +65,9 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
               step={STEP_INCHES}
               min={MIN_SIZE}
               max={MAX_SIZE}
-              className="flex-1 h-10 rounded-md border border-gray-300 text-center text-base font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="size-controls-input"
             />
-            <button
-              type="button"
-              onClick={incrementWidth}
-              className="h-10 w-10 rounded-md border border-gray-300 text-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
-            >
-              +
-            </button>
+            <button type="button" onClick={incrementWidth} className="size-controls-btn" aria-label="Increase width">+</button>
           </div>
         </div>
 
@@ -88,14 +76,8 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
           <label className="text-sm font-medium text-gray-700">
             Height (inches)
           </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={decrementHeight}
-              className="h-10 w-10 rounded-md border border-gray-300 text-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
-            >
-              −
-            </button>
+          <div className="size-controls-stepper flex items-center gap-2">
+            <button type="button" onClick={decrementHeight} className="size-controls-btn" aria-label="Decrease height">−</button>
             <input
               type="number"
               value={height}
@@ -103,15 +85,9 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
               step={STEP_INCHES}
               min={MIN_SIZE}
               max={MAX_SIZE}
-              className="flex-1 h-10 rounded-md border border-gray-300 text-center text-base font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="size-controls-input"
             />
-            <button
-              type="button"
-              onClick={incrementHeight}
-              className="h-10 w-10 rounded-md border border-gray-300 text-lg font-medium hover:bg-gray-50 transition-colors flex items-center justify-center"
-            >
-              +
-            </button>
+            <button type="button" onClick={incrementHeight} className="size-controls-btn" aria-label="Increase height">+</button>
           </div>
         </div>
       </div>

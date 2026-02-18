@@ -10,6 +10,8 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     cssCodeSplit: false,
+    // Copy public directory assets to dist
+    copyPublicDir: true,
     rollupOptions: {
       output: {
         format: "iife",

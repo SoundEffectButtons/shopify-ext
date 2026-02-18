@@ -283,15 +283,8 @@ const DesignViewer = ({
       return;
     }
 
-    // Revoke previous blob URL if exists
-    if (prevImageUrlRef.current && prevImageUrlRef.current.startsWith("blob:")) {
-      try {
-        URL.revokeObjectURL(prevImageUrlRef.current);
-      } catch (err) {
-        console.error("Error revoking blob URL:", err);
-      }
-    }
-
+    // Don't revoke blob URLs - let parent component manage them
+    // This allows parent to switch between multiple cached blob URLs
     prevImageUrlRef.current = imageUrl;
 
     if (imageUrl) {
@@ -323,13 +316,8 @@ const DesignViewer = ({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (prevImageUrlRef.current && prevImageUrlRef.current.startsWith("blob:")) {
-        try {
-          URL.revokeObjectURL(prevImageUrlRef.current);
-        } catch (err) {
-          console.error("Error revoking blob URL on unmount:", err);
-        }
-      }
+      // Don't revoke blob URLs on unmount - let parent component manage them
+      // This prevents issues when parent is switching between cached URLs
     };
   }, []);
 

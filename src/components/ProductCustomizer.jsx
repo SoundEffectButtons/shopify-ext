@@ -8,9 +8,17 @@ import PricePreview from "./PricePreview";
 import AddToCartButton from "./AddToCartButton";
 
 // API endpoints
-const API_BASE = "https://highquality.allgovjobs.com";
+const API_BASE = "https://highquality.allgovjobs.com/backend";
 const REMOVE_BG_ENDPOINT = `${API_BASE}/api/images/remove-bg`;
 const ENHANCE_ENDPOINT = `${API_BASE}/api/images/enhance`;
+
+/** Build a full server URL from a path (avoids double slashes). */
+function buildServerUrl(path) {
+  if (!path) return null;
+  const base = API_BASE.replace(/\/$/, "");
+  const p = path.startsWith("/") ? path.slice(1) : path;
+  return `${base}/${p}`;
+}
 
 /**
  * ProductCustomizer - Root component for the Shopify product customization experience
@@ -34,7 +42,7 @@ const DEFAULT_SETTINGS = {
   enablePlacement: true,
 };
 
-const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) => {
+const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, variantPrice = null }) => {
   // Core customization state
   const [imageUrl, setImageUrl] = useState(null);
   const [width, setWidth] = useState(10);
@@ -44,9 +52,16 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
   
   // Image processing state
   const [currentImageBlob, setCurrentImageBlob] = useState(null);
-  const [finalImageUrl, setFinalImageUrl] = useState(null); // Server URL for cart
+  const [originalImageBlob, setOriginalImageBlob] = useState(null); // Store original image blob
+  const [processedImageBlob, setProcessedImageBlob] = useState(null); // Store processed (bg removed) image
+  const [originalImageUrl, setOriginalImageUrl] = useState(null); // Display URL for original (blob URL for preview)
+  const [processedImageUrl, setProcessedImageUrl] = useState(null); // Display URL for processed (blob URL for preview)
+  const [originalServerUrl, setOriginalServerUrl] = useState(null); // Server URL for original image
+  const [processedServerUrl, setProcessedServerUrl] = useState(null); // Server URL for processed image
+  const [finalImageUrl, setFinalImageUrl] = useState(null); // Server URL for cart (switches based on toggle)
   const [loadingRemoveBg, setLoadingRemoveBg] = useState(false);
   const [loadingEnhance, setLoadingEnhance] = useState(false);
+  const [removeBgEnabled, setRemoveBgEnabled] = useState(true); // Toggle for auto remove BG
   
   // UI state
   const [tintColor, setTintColor] = useState("#6b7280");
@@ -57,6 +72,8 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
   // Refs
   const currentBlobUrlRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const originalBlobUrlRef = useRef(null);
+  const processedBlobUrlRef = useRef(null);
 
   // Fetch product customizer settings on load
   useEffect(() => {
@@ -79,26 +96,63 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
       });
   }, [settingsUrl]);
 
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (originalBlobUrlRef.current && originalBlobUrlRef.current.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(originalBlobUrlRef.current);
+        } catch (err) {
+          console.error("Error revoking original blob URL on unmount:", err);
+        }
+      }
+      if (processedBlobUrlRef.current && processedBlobUrlRef.current.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(processedBlobUrlRef.current);
+        } catch (err) {
+          console.error("Error revoking processed blob URL on unmount:", err);
+        }
+      }
+    };
+  }, []);
+
   // Handle image upload
   const handleImageUpload = useCallback(async (url, file) => {
-    // Revoke previous blob URL
-    if (currentBlobUrlRef.current && currentBlobUrlRef.current.startsWith("blob:")) {
+    // Revoke previous blob URLs before creating new ones
+    if (originalBlobUrlRef.current && originalBlobUrlRef.current.startsWith("blob:") && originalBlobUrlRef.current !== url) {
       try {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
+        URL.revokeObjectURL(originalBlobUrlRef.current);
       } catch (err) {
-        console.error("Error revoking blob URL:", err);
+        console.error("Error revoking original blob URL:", err);
+      }
+    }
+    if (processedBlobUrlRef.current && processedBlobUrlRef.current.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(processedBlobUrlRef.current);
+      } catch (err) {
+        console.error("Error revoking processed blob URL:", err);
       }
     }
 
+    // Store original image
+    setOriginalImageBlob(file);
+    setOriginalImageUrl(url);
+    originalBlobUrlRef.current = url;
+    
+    setProcessedImageBlob(null); // Reset processed image
+    setProcessedImageUrl(null);
+    setOriginalServerUrl(null); // Reset server URLs
+    setProcessedServerUrl(null);
+    processedBlobUrlRef.current = null;
+    setFinalImageUrl(null); // Reset final URL on new upload
+    
+    // Set current image to original initially
     currentBlobUrlRef.current = url;
     setImageUrl(url);
-    setFinalImageUrl(null); // Reset final URL on new upload
+    setCurrentImageBlob(file);
 
-    // If file is provided, store the blob for API calls
-    if (file) {
-      setCurrentImageBlob(file);
-      
-      // Auto-remove background on upload
+    // Auto-remove background on upload only if removeBgEnabled is true
+    if (file && removeBgEnabled) {
       abortControllerRef.current?.abort();
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
@@ -113,27 +167,39 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
           signal,
         });
 
-        // Get the server URL from response header
-        const serverLink = res.headers.get("X-Image-Link");
-        if (serverLink) {
-          const fullServerUrl = `${API_BASE}/${serverLink}`;
-          setFinalImageUrl(fullServerUrl);
-          console.log("Server image URL:", fullServerUrl);
+        // Get the server URLs from response headers
+        const processedLink = res.headers.get("X-Image-Link");
+        const originalLink = res.headers.get("X-Original-Image-Link");
+        
+        let processedUrl = null;
+        let originalUrl = null;
+        
+        if (processedLink) {
+          processedUrl = buildServerUrl(processedLink);
+          setProcessedServerUrl(processedUrl);
+          setFinalImageUrl(processedUrl); // Use processed URL for cart
+          console.log("Processed image URL:", processedUrl);
+        }
+        
+        if (originalLink) {
+          originalUrl = buildServerUrl(originalLink);
+          setOriginalServerUrl(originalUrl);
+          console.log("Original image URL:", originalUrl);
         }
 
         // Get processed image blob
         const processedBlob = await res.blob();
-        setCurrentImageBlob(processedBlob);
+        setProcessedImageBlob(processedBlob);
 
-        // Create new display URL
+        // Create new display URL for processed image
         const newDisplayUrl = URL.createObjectURL(processedBlob);
+        setProcessedImageUrl(newDisplayUrl);
+        processedBlobUrlRef.current = newDisplayUrl;
         
-        // Revoke old URL and update
-        if (currentBlobUrlRef.current && currentBlobUrlRef.current.startsWith("blob:")) {
-          URL.revokeObjectURL(currentBlobUrlRef.current);
-        }
+        // Update current display to processed image
         currentBlobUrlRef.current = newDisplayUrl;
         setImageUrl(newDisplayUrl);
+        setCurrentImageBlob(processedBlob);
 
       } catch (err) {
         if (err?.name === "AbortError") return;
@@ -143,7 +209,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
         setLoadingRemoveBg(false);
       }
     }
-  }, []);
+  }, [removeBgEnabled]);
 
   // Cancel ongoing processing (Remove BG or Enhance)
   const handleCancelProcessing = useCallback(() => {
@@ -170,22 +236,32 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
         signal,
       });
 
-      // Get the server URL from response header
+      // Get both processed and original server URLs (cart needs original when user toggles to original)
       const serverLink = res.headers.get("X-Image-Link");
+      const originalLink = res.headers.get("X-Original-Image-Link");
       if (serverLink) {
-        const fullServerUrl = `${API_BASE}/${serverLink}`;
+        const fullServerUrl = buildServerUrl(serverLink);
+        setProcessedServerUrl(fullServerUrl);
         setFinalImageUrl(fullServerUrl);
         console.log("Remove BG - Server image URL:", fullServerUrl);
+      }
+      if (originalLink) {
+        setOriginalServerUrl(buildServerUrl(originalLink));
       }
 
       // Get processed image blob
       const processedBlob = await res.blob();
+      setProcessedImageBlob(processedBlob);
       setCurrentImageBlob(processedBlob);
 
-      // Create new display URL
+      // Create new display URL (blob for preview only)
       const newDisplayUrl = URL.createObjectURL(processedBlob);
+      if (processedBlobUrlRef.current && processedBlobUrlRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(processedBlobUrlRef.current); } catch (_) {}
+      }
+      processedBlobUrlRef.current = newDisplayUrl;
+      setProcessedImageUrl(newDisplayUrl);
       
-      // Revoke old URL and update
       if (currentBlobUrlRef.current && currentBlobUrlRef.current.startsWith("blob:")) {
         URL.revokeObjectURL(currentBlobUrlRef.current);
       }
@@ -218,22 +294,32 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
         signal,
       });
 
-      // Get the server URL from response header
+      // Get both enhanced and original server URLs (cart needs original when user toggles to original)
       const serverLink = res.headers.get("X-AutoEnhance-Link");
+      const originalLink = res.headers.get("X-Original-Image-Link");
       if (serverLink) {
-        const fullServerUrl = `${API_BASE}/${serverLink}`;
+        const fullServerUrl = buildServerUrl(serverLink);
+        setProcessedServerUrl(fullServerUrl);
         setFinalImageUrl(fullServerUrl);
         console.log("Enhance - Server image URL:", fullServerUrl);
+      }
+      if (originalLink) {
+        setOriginalServerUrl(buildServerUrl(originalLink));
       }
 
       // Get processed image blob
       const processedBlob = await res.blob();
+      setProcessedImageBlob(processedBlob);
       setCurrentImageBlob(processedBlob);
 
-      // Create new display URL
+      // Create new display URL (blob for preview only)
       const newDisplayUrl = URL.createObjectURL(processedBlob);
+      if (processedBlobUrlRef.current && processedBlobUrlRef.current.startsWith("blob:")) {
+        try { URL.revokeObjectURL(processedBlobUrlRef.current); } catch (_) {}
+      }
+      processedBlobUrlRef.current = newDisplayUrl;
+      setProcessedImageUrl(newDisplayUrl);
       
-      // Revoke old URL and update
       if (currentBlobUrlRef.current && currentBlobUrlRef.current.startsWith("blob:")) {
         URL.revokeObjectURL(currentBlobUrlRef.current);
       }
@@ -255,26 +341,128 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
 
   // Handle clearing the design
   const handleClearDesign = useCallback(() => {
-    // Revoke the blob URL before clearing
-    if (currentBlobUrlRef.current && currentBlobUrlRef.current.startsWith("blob:")) {
+    // Revoke blob URLs when clearing
+    if (originalBlobUrlRef.current && originalBlobUrlRef.current.startsWith("blob:")) {
       try {
-        URL.revokeObjectURL(currentBlobUrlRef.current);
+        URL.revokeObjectURL(originalBlobUrlRef.current);
       } catch (err) {
-        console.error("Error revoking blob URL:", err);
+        console.error("Error revoking original blob URL:", err);
       }
     }
+    if (processedBlobUrlRef.current && processedBlobUrlRef.current.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(processedBlobUrlRef.current);
+      } catch (err) {
+        console.error("Error revoking processed blob URL:", err);
+      }
+    }
+    
     currentBlobUrlRef.current = null;
+    originalBlobUrlRef.current = null;
+    processedBlobUrlRef.current = null;
     setImageUrl(null);
     setCurrentImageBlob(null);
+    setOriginalImageBlob(null);
+    setOriginalImageUrl(null);
+    setProcessedImageBlob(null);
+    setProcessedImageUrl(null);
+    setOriginalServerUrl(null);
+    setProcessedServerUrl(null);
     setFinalImageUrl(null);
   }, []);
 
-  // Get the image URL to use for cart (prefer server URL, fallback to display URL)
-  const cartImageUrl = finalImageUrl || imageUrl;
+  // Handle toggle remove BG
+  const handleToggleRemoveBg = useCallback(async (enabled) => {
+    setRemoveBgEnabled(enabled);
+    
+    // If toggling off, switch to original image
+    if (!enabled && originalImageUrl && originalImageBlob) {
+      currentBlobUrlRef.current = originalImageUrl;
+      setImageUrl(originalImageUrl);
+      setCurrentImageBlob(originalImageBlob);
+      // Use original server URL for cart
+      setFinalImageUrl(originalServerUrl || null);
+    }
+    // If toggling on, check if we already have processed image
+    else if (enabled && processedImageUrl && processedImageBlob) {
+      // Use cached processed image
+      currentBlobUrlRef.current = processedImageUrl;
+      setImageUrl(processedImageUrl);
+      setCurrentImageBlob(processedImageBlob);
+      // Use processed server URL for cart
+      setFinalImageUrl(processedServerUrl || null);
+    }
+    // If toggling on but no processed image yet, process it now
+    else if (enabled && originalImageBlob && !processedImageBlob) {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+      try {
+        setLoadingRemoveBg(true);
+        const form = new FormData();
+        form.append("image", originalImageBlob);
+
+        const res = await fetch(REMOVE_BG_ENDPOINT, {
+          method: "POST",
+          body: form,
+          signal,
+        });
+
+        // Get the server URLs from response headers
+        const processedLink = res.headers.get("X-Image-Link");
+        const originalLink = res.headers.get("X-Original-Image-Link");
+        
+        let processedUrl = null;
+        let originalUrl = null;
+        
+        if (processedLink) {
+          processedUrl = buildServerUrl(processedLink);
+          setProcessedServerUrl(processedUrl);
+          setFinalImageUrl(processedUrl); // Use processed URL for cart
+          console.log("Toggle ON - Processed image URL:", processedUrl);
+        }
+        
+        if (originalLink) {
+          originalUrl = buildServerUrl(originalLink);
+          setOriginalServerUrl(originalUrl);
+          console.log("Toggle ON - Original image URL:", originalUrl);
+        }
+
+        // Get processed image blob
+        const processedBlob = await res.blob();
+        setProcessedImageBlob(processedBlob);
+
+        // Create new display URL for processed image
+        const newDisplayUrl = URL.createObjectURL(processedBlob);
+        setProcessedImageUrl(newDisplayUrl);
+        processedBlobUrlRef.current = newDisplayUrl;
+        
+        // Update current display to processed image
+        currentBlobUrlRef.current = newDisplayUrl;
+        setImageUrl(newDisplayUrl);
+        setCurrentImageBlob(processedBlob);
+
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        console.error("Remove-bg on toggle failed:", err);
+        // Keep original image if processing fails
+      } finally {
+        setLoadingRemoveBg(false);
+      }
+    }
+  }, [originalImageUrl, originalImageBlob, processedImageUrl, processedImageBlob, originalServerUrl, processedServerUrl]);
+
+  // Cart must never receive a blob URL — only server URLs that match the current preview.
+  // Toggle ON (preview = removed-bg) → processed server URL.
+  // Toggle OFF (preview = original) → original server URL.
+  // No fallback to blob; if no server URL, cart gets null and Add to Cart stays disabled.
+  const cartImageUrl = removeBgEnabled
+    ? (processedServerUrl || null)
+    : (originalServerUrl || null);
 
   return (
     <div className="product-customizer w-full bg-white">
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="max-w-7xl mx-auto p-4">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">
@@ -288,7 +476,14 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
         {/* Main layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left column - Upload and Preview */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="lg:col-span-7"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            marginRight:24,
+          }}
+          >
             {/* Upload Panel */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
               <UploadPanel 
@@ -300,6 +495,8 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
                 loadingEnhance={loadingEnhance}
                 onClear={handleClearDesign}
                 onCancelProcessing={handleCancelProcessing}
+                removeBgEnabled={removeBgEnabled}
+                onToggleRemoveBg={handleToggleRemoveBg}
               />
             </div>
 
@@ -326,7 +523,13 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
           </div>
 
           {/* Right column - Controls and Cart */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+          }}
+          >
             {/* Size Controls */}
             {settings.enableSize && (
               <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
@@ -388,6 +591,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
                 height={height}
                 preCut={preCut}
                 quantity={quantity}
+                variantPrice={variantPrice}
               />
             </div>
 
@@ -405,12 +609,12 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null }) =>
             </div>
 
             {/* Processing status indicator */}
-            {finalImageUrl && (
+            {cartImageUrl && (
               <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span>Image processed and ready for order</span>
+                <span>Image ready for order (matches preview)</span>
               </div>
             )}
           </div>

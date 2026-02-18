@@ -6,7 +6,7 @@ const formatPrice = (n) =>
 
 // Pricing constants
 const BASE_PRICE = 9.17;
-const PRICE_PER_SQIN = 0.0416;
+const PRICE_PER_SQIN = 0.041; // size-based price: (width * height) * 0.041
 const PRECUT_FEE = 0.24;
 
 // Volume discount tiers
@@ -18,7 +18,12 @@ const DISCOUNT_TIERS = [
   { minQty: 250, maxQty: Infinity, discount: 0.5, label: "250+ pcs (50% off)" },
 ];
 
-const PricePreview = ({ width, height, preCut, quantity = 1 }) => {
+const PricePreview = ({ width, height, preCut, quantity = 1, variantPrice: variantPriceProp }) => {
+  // Use product/variant price when provided (dynamic per product); otherwise fallback to static default
+  const basePrice = variantPriceProp != null && !Number.isNaN(Number(variantPriceProp))
+    ? Number(variantPriceProp)
+    : BASE_PRICE;
+
   const pricing = useMemo(() => {
     // Calculate area price
     const area = width * height;
@@ -27,8 +32,8 @@ const PricePreview = ({ width, height, preCut, quantity = 1 }) => {
     // Add pre-cut fee if selected
     const preCutPrice = preCut ? PRECUT_FEE : 0;
     
-    // Calculate unit price (before discount)
-    const unitPrice = BASE_PRICE + areaPrice + preCutPrice;
+    // Calculate unit price (before discount) — base comes from variant when in theme
+    const unitPrice = basePrice + areaPrice + preCutPrice;
     
     // Find applicable discount tier
     const tier = DISCOUNT_TIERS.find(
@@ -51,7 +56,7 @@ const PricePreview = ({ width, height, preCut, quantity = 1 }) => {
       discount: tier.discount,
       tierLabel: tier.label,
     };
-  }, [width, height, preCut, quantity]);
+  }, [width, height, preCut, quantity, basePrice]);
 
   return (
     <div className="price-preview bg-white rounded-lg">
@@ -67,7 +72,7 @@ const PricePreview = ({ width, height, preCut, quantity = 1 }) => {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Base price:</span>
-            <span>${formatPrice(BASE_PRICE)}</span>
+            <span>${formatPrice(basePrice)}</span>
           </div>
           
           <div className="flex justify-between text-gray-600">

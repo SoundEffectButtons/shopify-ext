@@ -7,9 +7,13 @@ import ProductCustomizer from "./components/ProductCustomizer";
 const container = document.getElementById("cloth-editor-app");
 
 if (container) {
-  // Get variant ID and asset URLs from data attributes
+  // Get variant ID, variant price, and asset URLs from data attributes (set by Liquid per product)
   const variantId = container.dataset.variantId || null;
   const settingsUrl = container.dataset.settingsUrl || null;
+  const variantPriceRaw = container.dataset.variantPrice;
+  const variantPrice = variantPriceRaw != null && variantPriceRaw !== ""
+    ? Number(String(variantPriceRaw).replace(/,/g, ""))
+    : null;
 
   // Get all asset URLs from data attributes (set by Liquid)
   const assetUrls = {
@@ -25,6 +29,11 @@ if (container) {
   };
 
   ReactDOM.createRoot(container).render(
-    <ProductCustomizer variantId={variantId} assetUrls={assetUrls} settingsUrl={settingsUrl} />
+    <ProductCustomizer
+      variantId={variantId}
+      assetUrls={assetUrls}
+      settingsUrl={settingsUrl}
+      variantPrice={variantPrice}
+    />
   );
 }
