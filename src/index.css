@@ -546,3 +546,147 @@
 #cloth-editor-app .animate-spin {
   animation: spin 1s linear infinite !important;
 }
+
+/* ==========================================================================
+   CROP MODAL — Cross-platform (desktop, mobile, tablet, Shopify embed)
+   ========================================================================== */
+#cloth-editor-app .crop-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left) !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+#cloth-editor-app .crop-modal-content {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 42rem !important;
+  margin: 0.5rem 0.75rem !important;
+  padding: 0 !important;
+  background-color: #1f2937 !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  flex-shrink: 0 !important;
+}
+@media (min-width: 640px) {
+  #cloth-editor-app .crop-modal-content {
+    margin: 1rem !important;
+  }
+}
+#cloth-editor-app .crop-modal-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0.75rem 1rem !important;
+  border-bottom: 1px solid #374151 !important;
+}
+#cloth-editor-app .crop-modal-header h2 {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  color: #f9fafb !important;
+  margin: 0 !important;
+}
+#cloth-editor-app .crop-modal-header button[aria-label="Close crop editor"] {
+  min-width: 2.75rem !important;
+  min-height: 2.75rem !important;
+  padding: 0.25rem !important;
+  border-radius: 0.375rem !important;
+  color: #f9fafb !important;
+  background: transparent !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+#cloth-editor-app .crop-modal-header button[aria-label="Close crop editor"]:hover {
+  background-color: #4b5563 !important;
+}
+#cloth-editor-app .crop-modal-body {
+  position: relative !important;
+  width: 100% !important;
+  min-height: 200px !important;
+  max-height: min(400px, 70vh) !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+#cloth-editor-app .crop-modal-reactcrop {
+  max-height: min(400px, 70vh) !important;
+  width: 100% !important;
+}
+#cloth-editor-app .crop-modal-img {
+  display: block !important;
+  max-height: min(400px, 70vh) !important;
+  width: 100% !important;
+  height: auto !important;
+}
+#cloth-editor-app .crop-modal-footer {
+  padding: 0.75rem 1rem !important;
+  border-top: 1px solid #374151 !important;
+}
+#cloth-editor-app .crop-modal-footer p {
+  font-size: 0.75rem !important;
+  color: #9ca3af !important;
+  margin-bottom: 1rem !important;
+}
+#cloth-editor-app .crop-modal-btn {
+  min-width: 2.75rem !important;
+  min-height: 2.75rem !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+#cloth-editor-app .crop-modal-btn:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+#cloth-editor-app .crop-modal-btn-cancel {
+  color: #9ca3af !important;
+  background-color: #374151 !important;
+}
+#cloth-editor-app .crop-modal-btn-cancel:hover {
+  background-color: #4b5563 !important;
+}
+#cloth-editor-app .crop-modal-btn-done {
+  color: #ffffff !important;
+  background-color: #9333ea !important;
+  background-image: linear-gradient(to right, #9333ea, #3b82f6) !important;
+}
+#cloth-editor-app .crop-modal-btn-done:hover:not(:disabled) {
+  background-color: #7c3aed !important;
+  background-image: linear-gradient(to right, #7c3aed, #2563eb) !important;
+}
+
+/* Crop button (UploadPanel) — matches Remove BG / Enhance */
+#cloth-editor-app .crop-button {
+  background-color: #059669 !important;
+  background-image: linear-gradient(to right, #059669, #10b981) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+#cloth-editor-app .crop-button:hover:not(:disabled) {
+  background-color: #047857 !important;
+  background-image: linear-gradient(to right, #047857, #059669) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+#cloth-editor-app .crop-button:disabled {
+  background-color: #f3f4f6 !important;
+  background-image: none !important;
+  color: #9ca3af !important;
+  cursor: wait !important;
+}

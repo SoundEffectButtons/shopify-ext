@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
 import UploadLoader from "./UploadLoader";
+import ImageCropModal from "./ImageCropModal";
 
 const UploadPanel = ({
   onUpload,
@@ -18,6 +19,8 @@ const UploadPanel = ({
   const [isHovering, setIsHovering] = useState(false);
   const [bgPos, setBgPos] = useState("center");
   const [progress, setProgress] = useState(0);
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState(null); // { url, file } - set on file select, cleared on Done/Cancel
 
   // Disable zoom while loading so hover doesn't trigger zoom
   const zoomActive = isHovering && !loadingRemoveBg && !loadingEnhance;
@@ -51,11 +54,10 @@ const UploadPanel = ({
     const file = e.target.files[0];
     if (!file) return;
 
-    // Create object URL from file and pass the file for API calls
     const url = URL.createObjectURL(file);
-    onUpload(url, file);
+    setPendingUpload({ url, file });
+    setShowCropModal(true);
 
-    // Reset input so same file can be selected again
     e.target.value = "";
   };
 
@@ -70,7 +72,8 @@ const UploadPanel = ({
     const file = e.dataTransfer?.files[0];
     if (file && file.type.startsWith("image/")) {
       const url = URL.createObjectURL(file);
-      onUpload(url, file);
+      setPendingUpload({ url, file });
+      setShowCropModal(true);
     }
   };
 
@@ -85,6 +88,31 @@ const UploadPanel = ({
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
     setBgPos(`${x}% ${y}%`);
+  };
+
+  const handleCropApply = (finalUrl, finalFile) => {
+    if (pendingUpload?.url && pendingUpload.url.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(pendingUpload.url);
+      } catch (err) {
+        console.error("Error revoking pending blob URL:", err);
+      }
+    }
+    setPendingUpload(null);
+    setShowCropModal(false);
+    onUpload(finalUrl, finalFile);
+  };
+
+  const handleCropCancel = () => {
+    if (pendingUpload?.url && pendingUpload.url.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(pendingUpload.url);
+      } catch (err) {
+        console.error("Error revoking pending blob URL:", err);
+      }
+    }
+    setPendingUpload(null);
+    setShowCropModal(false);
   };
 
   const isAnyLoading = loadingRemoveBg || loadingEnhance;
@@ -219,7 +247,7 @@ const UploadPanel = ({
           {/* Action buttons */}
           <div className="flex flex-wrap gap-3">
             {/* Remove Background */}
-            <button
+            {/* <button
               type="button"
               onClick={onRemoveBg}
               disabled={isAnyLoading}
@@ -285,7 +313,54 @@ const UploadPanel = ({
                 </svg>
               )}
               <span>{loadingRemoveBg ? "Removing..." : "Remove BG"}</span>
-            </button>
+            </button> */}
+
+            {/* Crop Image */}
+            {/* <button
+              type="button"
+              onClick={() => setShowCropModal(true)}
+              disabled={isAnyLoading}
+              className="crop-button flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
+              style={{
+                minWidth: "140px",
+                backgroundColor: isAnyLoading ? "#f3f4f6" : "#059669",
+                backgroundImage: isAnyLoading ? "none" : "linear-gradient(to right, #059669, #10b981)",
+                color: isAnyLoading ? "#9ca3af" : "#ffffff",
+                cursor: isAnyLoading ? "wait" : "pointer",
+                boxShadow: isAnyLoading ? "none" : "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                border: "none",
+                outline: "none",
+              }}
+              onMouseEnter={(e) => {
+                if (!isAnyLoading) {
+                  e.currentTarget.style.backgroundColor = "#047857";
+                  e.currentTarget.style.backgroundImage = "linear-gradient(to right, #047857, #059669)";
+                  e.currentTarget.style.boxShadow = "0 10px 15px -3px rgba(0, 0, 0, 0.1)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isAnyLoading) {
+                  e.currentTarget.style.backgroundColor = "#059669";
+                  e.currentTarget.style.backgroundImage = "linear-gradient(to right, #059669, #10b981)";
+                  e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)";
+                }
+              }}
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                />
+              </svg>
+              <span>Crop</span>
+            </button> */}
 
             {/* Enhance Image */}
             <button
@@ -463,6 +538,14 @@ const UploadPanel = ({
         onChange={handleFileChange}
         className="hidden"
       />
+
+      {showCropModal && (pendingUpload?.url || imageUrl) && (
+        <ImageCropModal
+          imageUrl={pendingUpload?.url ?? imageUrl}
+          onApply={handleCropApply}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 };
