@@ -372,7 +372,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
       }
       currentBlobUrlRef.current = newDisplayUrl;
       setImageUrl(newDisplayUrl);
-      updateDimensionsFromImageUrl(newDisplayUrl);
+      // Do not update dimensions: Enhance upscales resolution only; physical design size (inches) stays the same.
 
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -380,7 +380,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
     } finally {
       setLoadingEnhance(false);
     }
-  }, [currentImageBlob, loadingEnhance, updateDimensionsFromImageUrl]);
+  }, [currentImageBlob, loadingEnhance]);
 
   // Handle color change from DesignViewer
   const handleColorChange = useCallback((color) => {

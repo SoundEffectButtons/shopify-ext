@@ -1,6 +1,25 @@
 import React, { useState } from "react";
 
 /**
+ * Base URL for app assets. In Shopify the page is the store, so relative paths
+ * like /assets/... resolve to the store and 404. Use the script's origin so
+ * the GIF loads from the app host (e.g. Vercel).
+ */
+function getAssetBase() {
+  if (typeof document === "undefined") return "";
+  try {
+    const script = document.currentScript;
+    if (script?.src) {
+      const origin = new URL(script.src).origin;
+      return origin;
+    }
+  } catch (_) {}
+  return "";
+}
+
+const ASSET_BASE = getAssetBase();
+
+/**
  * UploadLoader - Processing overlay with animated mascot, progress bar, and Stop.
  * Shown while image is being processed (remove BG / enhance).
  */
@@ -10,8 +29,10 @@ const UploadLoader = ({ progress = 0, message, onStop }) => {
   const displayPercent = Math.round(value);
   const [gifError, setGifError] = useState(false);
 
-  // Use public path - Vite will serve from public folder
-  const gifPath = '/assets/gifs/comic-characters.gif';
+  // Use absolute URL when embedded (e.g. Shopify) so GIF loads from app host; relative for local/Vercel same-origin
+  const gifPath = ASSET_BASE
+    ? `${ASSET_BASE}/assets/gifs/comic-characters.gif`
+    : "/assets/gifs/comic-characters.gif";
 
   return (
     <div 
