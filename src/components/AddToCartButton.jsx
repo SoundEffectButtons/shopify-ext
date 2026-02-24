@@ -13,17 +13,19 @@ const AddToCartButton = ({
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
+  // Cart must only receive a server URL (never blob); parent passes the URL that matches current preview
   const isServerUrl =
     imageUrl && typeof imageUrl === "string" && !imageUrl.startsWith("blob:");
   const isValid = isServerUrl && width > 0 && height > 0 && variantId;
+  const urlForCart = isServerUrl ? imageUrl : null;
 
   const addToCart = async () => {
     if (!isValid || isLoading) return;
+    if (!urlForCart) return; // never send blob or empty
 
     setIsLoading(true);
     setError(null);
     setSuccess(false);
-    console.log("imageUrl", imageUrl);
     try {
       const response = await fetch("/cart/add.js", {
         method: "POST",
@@ -38,7 +40,7 @@ const AddToCartButton = ({
             _Area_x: width.toFixed(2),
             _Area_y: height.toFixed(2),
             _PreCut: preCut ? "Yes" : "No",
-            CustomImage: imageUrl,
+            CustomImage: urlForCart,
           },
         }),
       });

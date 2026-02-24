@@ -20,6 +20,31 @@ function buildServerUrl(path) {
   return `${base}/${p}`;
 }
 
+// Dimension limits (inches): auto-filled from image, clamped to this range
+const DIMENSION_MIN = 0.5;
+const DIMENSION_MAX = 22.5;
+const DPI = 300; // pixels per inch for converting image dimensions to inches
+
+/**
+ * Load image from URL, get natural dimensions, convert to inches and clamp to [DIMENSION_MIN, DIMENSION_MAX].
+ * @param {string} url - Blob or image URL
+ * @returns {Promise<{ widthInches: number, heightInches: number }>}
+ */
+function getImageDimensionsInInches(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const wInches = img.naturalWidth / DPI;
+      const hInches = img.naturalHeight / DPI;
+      const widthInches = Math.min(DIMENSION_MAX, Math.max(DIMENSION_MIN, +(wInches).toFixed(2)));
+      const heightInches = Math.min(DIMENSION_MAX, Math.max(DIMENSION_MIN, +(hInches).toFixed(2)));
+      resolve({ widthInches, heightInches });
+    };
+    img.onerror = () => reject(new Error("Failed to load image for dimensions"));
+    img.src = url;
+  });
+}
+
 /**
  * ProductCustomizer - Root component for the Shopify product customization experience
  * 
@@ -40,6 +65,7 @@ const DEFAULT_SETTINGS = {
   enablePrecut: true,
   enableQuantity: true,
   enablePlacement: true,
+  predefinedSizes: [],
 };
 
 const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, variantPrice = null }) => {
@@ -75,6 +101,17 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
   const originalBlobUrlRef = useRef(null);
   const processedBlobUrlRef = useRef(null);
 
+  // Update Set Design Size width/height from current preview image dimensions
+  const updateDimensionsFromImageUrl = useCallback((url) => {
+    if (!url) return;
+    getImageDimensionsInInches(url)
+      .then(({ widthInches, heightInches }) => {
+        setWidth(widthInches);
+        setHeight(heightInches);
+      })
+      .catch((err) => console.warn("Could not read image dimensions:", err));
+  }, []);
+
   // Fetch product customizer settings on load
   useEffect(() => {
     if (!settingsUrl) {
@@ -89,6 +126,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
           enablePrecut: data.enablePrecut === true,
           enableQuantity: data.enableQuantity === true,
           enablePlacement: data.enablePlacement === true,
+          predefinedSizes: Array.isArray(data.predefinedSizes) ? data.predefinedSizes : [],
         });
       })
       .catch(() => {
@@ -151,6 +189,14 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
     setImageUrl(url);
     setCurrentImageBlob(file);
 
+    // Auto-fill width/height from image dimensions (inches), clamped to [0.5, 22.5]
+    getImageDimensionsInInches(url)
+      .then(({ widthInches, heightInches }) => {
+        setWidth(widthInches);
+        setHeight(heightInches);
+      })
+      .catch((err) => console.warn("Could not read image dimensions:", err));
+
     // Auto-remove background on upload only if removeBgEnabled is true
     if (file && removeBgEnabled) {
       abortControllerRef.current?.abort();
@@ -196,11 +242,11 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
         setProcessedImageUrl(newDisplayUrl);
         processedBlobUrlRef.current = newDisplayUrl;
         
-        // Update current display to processed image
+        // Update current display to processed image (no crop step)
         currentBlobUrlRef.current = newDisplayUrl;
         setImageUrl(newDisplayUrl);
         setCurrentImageBlob(processedBlob);
-
+        updateDimensionsFromImageUrl(newDisplayUrl);
       } catch (err) {
         if (err?.name === "AbortError") return;
         console.error("Auto remove-bg failed:", err);
@@ -209,7 +255,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
         setLoadingRemoveBg(false);
       }
     }
-  }, [removeBgEnabled]);
+  }, [removeBgEnabled, updateDimensionsFromImageUrl]);
 
   // Cancel ongoing processing (Remove BG or Enhance)
   const handleCancelProcessing = useCallback(() => {
@@ -267,6 +313,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
       }
       currentBlobUrlRef.current = newDisplayUrl;
       setImageUrl(newDisplayUrl);
+      updateDimensionsFromImageUrl(newDisplayUrl);
 
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -274,7 +321,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
     } finally {
       setLoadingRemoveBg(false);
     }
-  }, [currentImageBlob, loadingRemoveBg]);
+  }, [currentImageBlob, loadingRemoveBg, updateDimensionsFromImageUrl]);
 
   // Handle Enhance Image
   const handleEnhance = useCallback(async () => {
@@ -325,6 +372,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
       }
       currentBlobUrlRef.current = newDisplayUrl;
       setImageUrl(newDisplayUrl);
+      updateDimensionsFromImageUrl(newDisplayUrl);
 
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -332,7 +380,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
     } finally {
       setLoadingEnhance(false);
     }
-  }, [currentImageBlob, loadingEnhance]);
+  }, [currentImageBlob, loadingEnhance, updateDimensionsFromImageUrl]);
 
   // Handle color change from DesignViewer
   const handleColorChange = useCallback((color) => {
@@ -380,17 +428,16 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
       currentBlobUrlRef.current = originalImageUrl;
       setImageUrl(originalImageUrl);
       setCurrentImageBlob(originalImageBlob);
-      // Use original server URL for cart
       setFinalImageUrl(originalServerUrl || null);
+      updateDimensionsFromImageUrl(originalImageUrl);
     }
     // If toggling on, check if we already have processed image
     else if (enabled && processedImageUrl && processedImageBlob) {
-      // Use cached processed image
       currentBlobUrlRef.current = processedImageUrl;
       setImageUrl(processedImageUrl);
       setCurrentImageBlob(processedImageBlob);
-      // Use processed server URL for cart
       setFinalImageUrl(processedServerUrl || null);
+      updateDimensionsFromImageUrl(processedImageUrl);
     }
     // If toggling on but no processed image yet, process it now
     else if (enabled && originalImageBlob && !processedImageBlob) {
@@ -441,6 +488,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
         currentBlobUrlRef.current = newDisplayUrl;
         setImageUrl(newDisplayUrl);
         setCurrentImageBlob(processedBlob);
+        updateDimensionsFromImageUrl(newDisplayUrl);
 
       } catch (err) {
         if (err?.name === "AbortError") return;
@@ -450,12 +498,12 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
         setLoadingRemoveBg(false);
       }
     }
-  }, [originalImageUrl, originalImageBlob, processedImageUrl, processedImageBlob, originalServerUrl, processedServerUrl]);
+  }, [originalImageUrl, originalImageBlob, processedImageUrl, processedImageBlob, originalServerUrl, processedServerUrl, updateDimensionsFromImageUrl]);
 
-  // Cart must never receive a blob URL — only server URLs that match the current preview.
-  // Toggle ON (preview = removed-bg) → processed server URL.
-  // Toggle OFF (preview = original) → original server URL.
-  // No fallback to blob; if no server URL, cart gets null and Add to Cart stays disabled.
+  // Add to cart always uses the latest server URL (never blob), matching current preview:
+  // - Preview showing removed background → use processed (remove-bg) server URL.
+  // - Preview showing original → use original server URL.
+  // No blob URL is ever sent; if no server URL exists, cart gets null and Add to Cart stays disabled.
   const cartImageUrl = removeBgEnabled
     ? (processedServerUrl || null)
     : (originalServerUrl || null);
@@ -538,6 +586,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
                   height={height}
                   setWidth={setWidth}
                   setHeight={setHeight}
+                  predefinedSizes={settings.predefinedSizes || []}
                 />
               </div>
             )}

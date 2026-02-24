@@ -1,30 +1,88 @@
 import React from "react";
 
-const STEP_INCHES = 0.25;
-const MIN_SIZE = 0.25;
-const MAX_SIZE = 100;
+const STEP_INCHES = 1; // step for +/- buttons
+const MIN_SIZE = 0.5;
+const MAX_SIZE = 22.5;
 
-const SizeControls = ({ width, height, setWidth, setHeight }) => {
+/** Clamp a value to [MIN_SIZE, MAX_SIZE] and round to 2 decimals */
+function clamp(v) {
+  return +Math.min(MAX_SIZE, Math.max(MIN_SIZE, v)).toFixed(2);
+}
+
+const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = [] }) => {
+  const aspectRatio = width > 0 ? height / width : 1;
+  const hasPredefined = Array.isArray(predefinedSizes) && predefinedSizes.length > 0;
+
+  const selectPredefined = (w, h) => {
+    setWidth(clamp(w));
+    setHeight(clamp(h));
+  };
+
+  const updateWidthAndHeight = (newWidth, newHeight) => {
+    const w = clamp(newWidth);
+    const h = clamp(newHeight);
+    setWidth(w);
+    setHeight(h);
+  };
+
   const incrementWidth = () => {
-    setWidth((prev) => Math.min(MAX_SIZE, +(prev + STEP_INCHES).toFixed(2)));
+    let newWidth = Math.min(MAX_SIZE, +(width + STEP_INCHES).toFixed(2));
+    let newHeight = newWidth * aspectRatio;
+    if (newHeight > MAX_SIZE) {
+      newHeight = MAX_SIZE;
+      newWidth = newHeight / aspectRatio;
+    } else if (newHeight < MIN_SIZE) {
+      newHeight = MIN_SIZE;
+      newWidth = newHeight / aspectRatio;
+    }
+    updateWidthAndHeight(newWidth, newHeight);
   };
 
   const decrementWidth = () => {
-    setWidth((prev) => Math.max(MIN_SIZE, +(prev - STEP_INCHES).toFixed(2)));
+    let newWidth = Math.max(MIN_SIZE, +(width - STEP_INCHES).toFixed(2));
+    let newHeight = newWidth * aspectRatio;
+    if (newHeight > MAX_SIZE) {
+      newHeight = MAX_SIZE;
+      newWidth = newHeight / aspectRatio;x
+    } else if (newHeight < MIN_SIZE) {
+      newHeight = MIN_SIZE;
+      newWidth = newHeight / aspectRatio;
+    }
+    updateWidthAndHeight(newWidth, newHeight);
   };
 
   const incrementHeight = () => {
-    setHeight((prev) => Math.min(MAX_SIZE, +(prev + STEP_INCHES).toFixed(2)));
+    let newHeight = Math.min(MAX_SIZE, +(height + STEP_INCHES).toFixed(2));
+    let newWidth = newHeight / aspectRatio;
+    if (newWidth > MAX_SIZE) {
+      newWidth = MAX_SIZE;
+      newHeight = newWidth * aspectRatio;
+    } else if (newWidth < MIN_SIZE) {
+      newWidth = MIN_SIZE;
+      newHeight = newWidth * aspectRatio;
+    }
+    updateWidthAndHeight(newWidth, newHeight);
   };
 
   const decrementHeight = () => {
-    setHeight((prev) => Math.max(MIN_SIZE, +(prev - STEP_INCHES).toFixed(2)));
+    let newHeight = Math.max(MIN_SIZE, +(height - STEP_INCHES).toFixed(2));
+    let newWidth = newHeight / aspectRatio;
+    if (newWidth > MAX_SIZE) {
+      newWidth = MAX_SIZE;
+      newHeight = newWidth * aspectRatio;
+    } else if (newWidth < MIN_SIZE) {
+      newWidth = MIN_SIZE;
+      newHeight = newWidth * aspectRatio;
+    }
+    updateWidthAndHeight(newWidth, newHeight);
   };
 
   const handleWidthChange = (e) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value >= MIN_SIZE && value <= MAX_SIZE) {
+      const newHeight = clamp(value * aspectRatio);
       setWidth(+value.toFixed(2));
+      setHeight(newHeight);
     } else if (e.target.value === "") {
       setWidth(MIN_SIZE);
     }
@@ -33,6 +91,8 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
   const handleHeightChange = (e) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value) && value >= MIN_SIZE && value <= MAX_SIZE) {
+      const newWidth = clamp(value / aspectRatio);
+      setWidth(newWidth);
       setHeight(+value.toFixed(2));
     } else if (e.target.value === "") {
       setHeight(MIN_SIZE);
@@ -50,6 +110,35 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
         </p>
       </div>
 
+      {hasPredefined && (
+        <div className="space-y-2 mb-4">
+          <label className="text-sm font-medium text-gray-700 block">Choose Size:</label>
+          <div className="flex flex-wrap gap-2">
+            {predefinedSizes.map((s, i) => {
+              const w = Number(s.width);
+              const h = Number(s.height);
+              if (isNaN(w) || isNaN(h)) return null;
+              const label = `${w}X${h}`;
+              const isSelected = Math.abs(width - w) < 0.01 && Math.abs(height - h) < 0.01;
+              return (
+                <button
+                  key={`${w}-${h}-${i}`}
+                  type="button"
+                  onClick={() => selectPredefined(w, h)}
+                  className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                    isSelected
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
         {/* Width Control */}
         <div className="space-y-2">
@@ -62,7 +151,7 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
               type="number"
               value={width}
               onChange={handleWidthChange}
-              step={STEP_INCHES}
+              step={0.25}
               min={MIN_SIZE}
               max={MAX_SIZE}
               className="size-controls-input"
@@ -82,7 +171,7 @@ const SizeControls = ({ width, height, setWidth, setHeight }) => {
               type="number"
               value={height}
               onChange={handleHeightChange}
-              step={STEP_INCHES}
+              step={0.25}
               min={MIN_SIZE}
               max={MAX_SIZE}
               className="size-controls-input"

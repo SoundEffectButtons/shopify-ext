@@ -75,11 +75,11 @@ const UploadLoader = ({ progress = 0, message, onStop }) => {
           This may take a few seconds.
         </p>
 
-        {/* Stop */}
+        {/* Stop - use dedicated class so button is always visible in Shopify/themes */}
         <button
           type="button"
           onClick={onStop}
-          className="mt-5 px-5 py-2 text-sm font-semibold text-white rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+          className="upload-loader-stop-btn px-5 py-2 text-sm font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
         >
           Stop
         </button>

@@ -2,11 +2,14 @@ import React, { useMemo } from "react";
 
 // Price formatter: explicit en-US to avoid locale issues (e.g. 9:17 vs 9.17)
 const formatPrice = (n) =>
-  Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  Number(n).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
-// Pricing constants
+// Pricing constants — keep in sync with hq-migration/extensions/cart-pricing (cart transform) for cart/checkout price
 const BASE_PRICE = 9.17;
-const PRICE_PER_SQIN = 0.041; // size-based price: (width * height) * 0.041
+const PRICE_PER_SQIN = 0.0416; // size-based price: (width * height) * 0.0416
 const PRECUT_FEE = 0.24;
 
 // Volume discount tiers
@@ -18,34 +21,41 @@ const DISCOUNT_TIERS = [
   { minQty: 250, maxQty: Infinity, discount: 0.5, label: "250+ pcs (50% off)" },
 ];
 
-const PricePreview = ({ width, height, preCut, quantity = 1, variantPrice: variantPriceProp }) => {
+const PricePreview = ({
+  width,
+  height,
+  preCut,
+  quantity = 1,
+  variantPrice: variantPriceProp,
+}) => {
   // Use product/variant price when provided (dynamic per product); otherwise fallback to static default
-  const basePrice = variantPriceProp != null && !Number.isNaN(Number(variantPriceProp))
-    ? Number(variantPriceProp)
-    : BASE_PRICE;
-
+  // const basePrice = variantPriceProp != null && !Number.isNaN(Number(variantPriceProp))
+  //   ? Number(variantPriceProp)
+  //   : BASE_PRICE;
+  const basePrice = 0;
   const pricing = useMemo(() => {
     // Calculate area price
     const area = width * height;
     const areaPrice = area * PRICE_PER_SQIN;
-    
+
     // Add pre-cut fee if selected
     const preCutPrice = preCut ? PRECUT_FEE : 0;
-    
+
     // Calculate unit price (before discount) — base comes from variant when in theme
     const unitPrice = basePrice + areaPrice + preCutPrice;
-    
+
     // Find applicable discount tier
-    const tier = DISCOUNT_TIERS.find(
-      (t) => quantity >= t.minQty && quantity <= t.maxQty
-    ) || DISCOUNT_TIERS[0];
-    
+    const tier =
+      DISCOUNT_TIERS.find(
+        (t) => quantity >= t.minQty && quantity <= t.maxQty,
+      ) || DISCOUNT_TIERS[0];
+
     // Apply discount
     const discountedUnitPrice = unitPrice * (1 - tier.discount);
-    
+
     // Calculate total
     const totalPrice = discountedUnitPrice * quantity;
-    
+
     return {
       area,
       areaPrice,
@@ -70,25 +80,26 @@ const PricePreview = ({ width, height, preCut, quantity = 1, variantPrice: varia
       <div className="space-y-3">
         {/* Price breakdown */}
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-gray-600">
+          {/* <div className="flex justify-between text-gray-600">
             <span>Base price:</span>
             <span>${formatPrice(basePrice)}</span>
-          </div>
-          
+          </div> */}
+
           <div className="flex justify-between text-gray-600">
             <span>
-              Area ({formatPrice(pricing.area)} sq in × ${formatPrice(PRICE_PER_SQIN)}):
+              Area ({formatPrice(pricing.area)} sq in × $
+              {formatPrice(PRICE_PER_SQIN)}):
             </span>
             <span>${formatPrice(pricing.areaPrice)}</span>
           </div>
-          
+
           {preCut && (
             <div className="flex justify-between text-gray-600">
               <span>Pre-cut service:</span>
               <span>${formatPrice(pricing.preCutPrice)}</span>
             </div>
           )}
-          
+
           <div className="border-t border-gray-200 pt-2">
             <div className="flex justify-between font-medium text-gray-800">
               <span>Unit price:</span>
@@ -98,8 +109,12 @@ const PricePreview = ({ width, height, preCut, quantity = 1, variantPrice: varia
 
           {pricing.discount > 0 && (
             <div className="flex justify-between text-green-600">
-              <span>Discount ({(pricing.discount * 100).toFixed(0)}% off):</span>
-              <span>-${formatPrice(pricing.unitPrice - pricing.discountedUnitPrice)}</span>
+              <span>
+                Discount ({(pricing.discount * 100).toFixed(0)}% off):
+              </span>
+              <span>
+                -${formatPrice(pricing.unitPrice - pricing.discountedUnitPrice)}
+              </span>
             </div>
           )}
         </div>
@@ -121,7 +136,11 @@ const PricePreview = ({ width, height, preCut, quantity = 1, variantPrice: varia
               </p>
               {pricing.discount > 0 && (
                 <p className="text-xs text-green-600 font-medium">
-                  You save ${formatPrice((pricing.unitPrice - pricing.discountedUnitPrice) * quantity)}
+                  You save $
+                  {formatPrice(
+                    (pricing.unitPrice - pricing.discountedUnitPrice) *
+                      quantity,
+                  )}
                 </p>
               )}
             </div>
