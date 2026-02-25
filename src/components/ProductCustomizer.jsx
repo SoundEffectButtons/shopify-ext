@@ -587,6 +587,7 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
                   setWidth={setWidth}
                   setHeight={setHeight}
                   predefinedSizes={settings.predefinedSizes || []}
+                  disabled={loadingRemoveBg || loadingEnhance}
                 />
               </div>
             )}

@@ -236,23 +236,27 @@ const DesignViewer = ({
       }
 
       const hoodiePixelWidth = baseImg.getScaledWidth();
-      const targetWidth = hoodiePixelWidth * 0.25;
+      const sizeMultiplier = idx === 3 ? 0.15 : 0.20;
+      const targetWidth = hoodiePixelWidth * sizeMultiplier;
       const scale = targetWidth / logo.width;
 
       // Position adjustments based on product type
       const isLast = idx === products.length - 1;
-      const isFourth = idx === 3;
+      const isCap = idx === 3;
       const isFifth = idx === 4;
 
-      const offsetX = isLast ? baseImg.getScaledWidth() * 0 : 0;
-
+      let offsetX = isLast ? baseImg.getScaledWidth() * 0 : 0;
       let offsetY;
-      if (isFourth || isFifth) {
-        offsetY = -baseImg.getScaledHeight() * 0.02;
+
+      if (isCap) {
+        offsetX = 0;
+        offsetY = 0;
+      } else if (isFifth) {
+        offsetY = baseImg.getScaledHeight() * 0.05;
       } else if (isLast) {
-        offsetY = baseImg.getScaledHeight() * 0.02;
+        offsetY = baseImg.getScaledHeight() * 0.08;
       } else {
-        offsetY = -baseImg.getScaledHeight() * 0.12;
+        offsetY = -baseImg.getScaledHeight() * 0.05;
       }
 
       logo.set({

@@ -9,11 +9,12 @@ function clamp(v) {
   return +Math.min(MAX_SIZE, Math.max(MIN_SIZE, v)).toFixed(2);
 }
 
-const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = [] }) => {
+const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = [], disabled = false }) => {
   const aspectRatio = width > 0 ? height / width : 1;
   const hasPredefined = Array.isArray(predefinedSizes) && predefinedSizes.length > 0;
 
   const selectPredefined = (w, h) => {
+    if (disabled) return;
     setWidth(clamp(w));
     setHeight(clamp(h));
   };
@@ -43,7 +44,7 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
     let newHeight = newWidth * aspectRatio;
     if (newHeight > MAX_SIZE) {
       newHeight = MAX_SIZE;
-      newWidth = newHeight / aspectRatio;x
+      newWidth = newHeight / aspectRatio;
     } else if (newHeight < MIN_SIZE) {
       newHeight = MIN_SIZE;
       newWidth = newHeight / aspectRatio;
@@ -100,7 +101,7 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
   };
 
   return (
-    <div className="size-controls bg-white rounded-lg">
+    <div className={`size-controls bg-white rounded-lg ${disabled ? "pointer-events-none opacity-60 cursor-not-allowed" : ""}`} aria-disabled={disabled}>
       <div className="text-start space-y-2 mb-4">
         <h2 className="font-bold text-black text-base">
           Step 3: Set Design Size
@@ -124,6 +125,7 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
                 <button
                   key={`${w}-${h}-${i}`}
                   type="button"
+                  disabled={disabled}
                   onClick={() => selectPredefined(w, h)}
                   className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
                     isSelected
@@ -146,7 +148,7 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
             Width (inches)
           </label>
           <div className="size-controls-stepper flex items-center gap-2">
-            <button type="button" onClick={decrementWidth} className="size-controls-btn" aria-label="Decrease width">−</button>
+            <button type="button" disabled={disabled} onClick={decrementWidth} className="size-controls-btn" aria-label="Decrease width">−</button>
             <input
               type="number"
               value={width}
@@ -154,9 +156,10 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
               step={0.25}
               min={MIN_SIZE}
               max={MAX_SIZE}
+              disabled={disabled}
               className="size-controls-input"
             />
-            <button type="button" onClick={incrementWidth} className="size-controls-btn" aria-label="Increase width">+</button>
+            <button type="button" disabled={disabled} onClick={incrementWidth} className="size-controls-btn" aria-label="Increase width">+</button>
           </div>
         </div>
 
@@ -166,7 +169,7 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
             Height (inches)
           </label>
           <div className="size-controls-stepper flex items-center gap-2">
-            <button type="button" onClick={decrementHeight} className="size-controls-btn" aria-label="Decrease height">−</button>
+            <button type="button" disabled={disabled} onClick={decrementHeight} className="size-controls-btn" aria-label="Decrease height">−</button>
             <input
               type="number"
               value={height}
@@ -174,9 +177,10 @@ const SizeControls = ({ width, height, setWidth, setHeight, predefinedSizes = []
               step={0.25}
               min={MIN_SIZE}
               max={MAX_SIZE}
+              disabled={disabled}
               className="size-controls-input"
             />
-            <button type="button" onClick={incrementHeight} className="size-controls-btn" aria-label="Increase height">+</button>
+            <button type="button" disabled={disabled} onClick={incrementHeight} className="size-controls-btn" aria-label="Increase height">+</button>
           </div>
         </div>
       </div>

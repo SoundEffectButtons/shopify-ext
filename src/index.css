@@ -222,7 +222,9 @@
 /* Opacity */
 #cloth-editor-app .opacity-0 { opacity: 0 !important; }
 #cloth-editor-app .opacity-25 { opacity: 0.25 !important; }
+#cloth-editor-app .opacity-60 { opacity: 0.6 !important; }
 #cloth-editor-app .opacity-75 { opacity: 0.75 !important; }
+#cloth-editor-app .pointer-events-none { pointer-events: none !important; }
 
 /* Transitions */
 #cloth-editor-app .transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter !important; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important; transition-duration: 150ms !important; }
