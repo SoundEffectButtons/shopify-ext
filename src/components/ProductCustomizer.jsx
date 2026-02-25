@@ -423,13 +423,38 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
   const handleToggleRemoveBg = useCallback(async (enabled) => {
     setRemoveBgEnabled(enabled);
     
-    // If toggling off, switch to original image
+    // If toggling off, switch to original image and ensure we have a server URL for cart
     if (!enabled && originalImageUrl && originalImageBlob) {
       currentBlobUrlRef.current = originalImageUrl;
       setImageUrl(originalImageUrl);
       setCurrentImageBlob(originalImageBlob);
-      setFinalImageUrl(originalServerUrl || null);
       updateDimensionsFromImageUrl(originalImageUrl);
+
+      if (originalServerUrl) {
+        setFinalImageUrl(originalServerUrl);
+      } else {
+        // We don't have a server URL for the original (e.g. backend didn't return X-Original-Image-Link).
+        // Call remove-bg once to get the server to store the original and return its link; we only use the original link.
+        try {
+          const form = new FormData();
+          form.append("image", originalImageBlob);
+          const res = await fetch(REMOVE_BG_ENDPOINT, {
+            method: "POST",
+            body: form,
+          });
+          const originalLink = res.headers.get("X-Original-Image-Link");
+          if (originalLink) {
+            const url = buildServerUrl(originalLink);
+            setOriginalServerUrl(url);
+            setFinalImageUrl(url);
+          } else {
+            setFinalImageUrl(null);
+          }
+        } catch (err) {
+          console.warn("Could not get server URL for original image:", err);
+          setFinalImageUrl(null);
+        }
+      }
     }
     // If toggling on, check if we already have processed image
     else if (enabled && processedImageUrl && processedImageBlob) {
@@ -500,13 +525,9 @@ const ProductCustomizer = ({ variantId, assetUrls = {}, settingsUrl = null, vari
     }
   }, [originalImageUrl, originalImageBlob, processedImageUrl, processedImageBlob, originalServerUrl, processedServerUrl, updateDimensionsFromImageUrl]);
 
-  // Add to cart always uses the latest server URL (never blob), matching current preview:
-  // - Preview showing removed background → use processed (remove-bg) server URL.
-  // - Preview showing original → use original server URL.
-  // No blob URL is ever sent; if no server URL exists, cart gets null and Add to Cart stays disabled.
-  const cartImageUrl = removeBgEnabled
-    ? (processedServerUrl || null)
-    : (originalServerUrl || null);
+  // Add to cart uses finalImageUrl (single source of truth), which is set on upload and when toggling Remove BG.
+  // This ensures when user toggles OFF Remove Background we still pass the correct server URL for the original.
+  const cartImageUrl = finalImageUrl || null;
 
   return (
     <div className="product-customizer w-full bg-white">
